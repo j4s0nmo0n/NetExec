@@ -2,7 +2,7 @@
 NetExec ``adws`` protocol - Active Directory Web Services (port 9389).
 
 This protocol exposes the offensive and reconnaissance features of SOAPy
-(https://github.com/jlevere/SOAPy) as a first-class NetExec protocol. SOAPy
+(https://github.com/logangoins/SOAPy) as a first-class NetExec protocol. SOAPy
 is vendored under ``_soapy`` inside this package, with a ``GSS_Wrap_LDAP``
 fallback for impacket < 0.13.
 

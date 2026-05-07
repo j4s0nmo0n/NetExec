@@ -631,7 +631,7 @@ def run_cli():
 
 v1.0.0
 @_logangoins
-github.com/jlevere
+github.com/logangoins/SOAPy
 """)
 
     parser = argparse.ArgumentParser(
