@@ -88,3 +88,30 @@ test_data/
 ntds*.dit
 secretsdump*
 lsass*.dmp
+
+#  (never commit)
+*.tar.gz
+nxc-adws/
+*.patch
+cleanup_repo.sh
+
+# ADWS protocol: BloodHound collection outputs
+bloodhound-*/
+BloodHound-*/
+*.bloodhound.zip
+
+# ADWS protocol: cert-find outputs
+certfind-*/
+
+# Credentials (never commit)
+*.ccache
+*.kirbi
+*.pfx
+krb5cc*
+
+# Test data
+test_data/
+*.dump
+ntds*.dit
+secretsdump*
+lsass*.dmp
