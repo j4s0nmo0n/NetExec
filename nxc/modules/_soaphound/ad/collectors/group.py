@@ -83,82 +83,100 @@ def is_highvalue(sid):
 
 
 
-def write_default_groups(self):
-        """
-        Put default groups in the groups.json file
-        """
+def format_wellknown_groups(domain, domain_sid, domain_controllers=None):
+    """Build the four well-known security principal groups that BloodHound
+    expects as nodes in _groups.json.
 
-        # Domain controllers
-        rootdomain = self.addc.get_root_domain().upper()
-        entries = self.addc.get_domain_controllers()
+    These SIDs are not real AD objects, but BloodHound needs them as nodes
+    so that ACEs referencing them as a principal can be resolved in the
+    graph. Without these, edges pointing to S-1-5-9 (Enterprise DCs),
+    S-1-5-11 (Authenticated Users), S-1-1-0 (Everyone), or S-1-5-4
+    (Interactive) become orphan and break compromise paths - notably the
+    DCSync path (Enterprise DCs has GetChanges/GetChangesAll on the domain
+    object).
 
-        group = {
-            "IsDeleted": False,
-            "IsACLProtected": False,
-            "ObjectIdentifier": "%s-S-1-5-9" % rootdomain,
-            "Properties": {
-                "domain": rootdomain.upper(),
-                "name": "ENTERPRISE DOMAIN CONTROLLERS@%s" % rootdomain,
-            },
-            "Members": [],
-            "Aces": []
-        }
-        for entry in entries:
-            resolved_entry = ADUtils.resolve_ad_entry(entry)
-            memberdata = {
-                "ObjectIdentifier": resolved_entry['objectid'],
-                "ObjectType": resolved_entry['type'].capitalize()
-            }
-            group["Members"].append(memberdata)
-        self.result_q.put(group)
+    Aligned on bloodhound.py memberships.py:799-841.
 
-        domainsid = self.addomain.domain_object.sid
-        domainname = self.addomain.domain.upper()
+    Args:
+        domain: the domain name (e.g. "corp.lab"), case-insensitive.
+        domain_sid: the domain SID (e.g. "S-1-5-21-...").
+        domain_controllers: optional list of DC entries to populate the
+            Enterprise DCs Members list. Each entry should be a dict with
+            "ObjectIdentifier" and "ObjectType" keys. If None or empty,
+            Enterprise DCs is created with empty Members.
 
-        # Everyone
-        evgroup = {
-            "IsDeleted": False,
-            "IsACLProtected": False,
-            "ObjectIdentifier": "%s-S-1-1-0" % domainname,
-            "Properties": {
-                "domain": domainname,
-                "domainsid": self.addomain.domain_object.sid,
-                "name": "EVERYONE@%s" % domainname,
-            },
-            "Members": [],
-            "Aces": []
-        }
-        self.result_q.put(evgroup)
+    Returns:
+        list[dict]: the four BloodHound-formatted group nodes.
+    """
+    domain_upper = domain.upper()
+    groups = []
 
-        # Authenticated users
-        augroup = {
-            "IsDeleted": False,
-            "IsACLProtected": False,
-            "ObjectIdentifier": "%s-S-1-5-11" % domainname,
-            "Properties": {
-                "domain": domainname,
-                "domainsid": self.addomain.domain_object.sid,
-                "name": "AUTHENTICATED USERS@%s" % domainname,
-            },
-            "Members": [],
-            "Aces": []
-        }
-        self.result_q.put(augroup)
+    # Enterprise Domain Controllers (S-1-5-9)
+    # In bloodhound.py this is keyed on the root domain. For ADWS-only
+    # collection we use the current domain as a best-effort proxy.
+    edc_members = []
+    if domain_controllers:
+        for dc in domain_controllers:
+            edc_members.append({
+                "ObjectIdentifier": dc.get("ObjectIdentifier"),
+                "ObjectType": dc.get("ObjectType", "Computer"),
+            })
+    groups.append({
+        "IsDeleted": False,
+        "IsACLProtected": False,
+        "ObjectIdentifier": "%s-S-1-5-9" % domain_upper,
+        "Properties": {
+            "domain": domain_upper,
+            "domainsid": domain_sid,
+            "name": "ENTERPRISE DOMAIN CONTROLLERS@%s" % domain_upper,
+        },
+        "Members": edc_members,
+        "Aces": [],
+    })
 
-        # Interactive
-        iugroup = {
-            "IsDeleted": False,
-            "IsACLProtected": False,
-            "ObjectIdentifier": "%s-S-1-5-4" % domainname,
-            "Properties": {
-                "domain": domainname,
-                "domainsid": self.addomain.domain_object.sid,
-                "name": "INTERACTIVE@%s" % domainname,
-            },
-            "Members": [],
-            "Aces": []
-        }
-        self.result_q.put(iugroup)
+    # Everyone (S-1-1-0)
+    groups.append({
+        "IsDeleted": False,
+        "IsACLProtected": False,
+        "ObjectIdentifier": "%s-S-1-1-0" % domain_upper,
+        "Properties": {
+            "domain": domain_upper,
+            "domainsid": domain_sid,
+            "name": "EVERYONE@%s" % domain_upper,
+        },
+        "Members": [],
+        "Aces": [],
+    })
+
+    # Authenticated Users (S-1-5-11)
+    groups.append({
+        "IsDeleted": False,
+        "IsACLProtected": False,
+        "ObjectIdentifier": "%s-S-1-5-11" % domain_upper,
+        "Properties": {
+            "domain": domain_upper,
+            "domainsid": domain_sid,
+            "name": "AUTHENTICATED USERS@%s" % domain_upper,
+        },
+        "Members": [],
+        "Aces": [],
+    })
+
+    # Interactive (S-1-5-4)
+    groups.append({
+        "IsDeleted": False,
+        "IsACLProtected": False,
+        "ObjectIdentifier": "%s-S-1-5-4" % domain_upper,
+        "Properties": {
+            "domain": domain_upper,
+            "domainsid": domain_sid,
+            "name": "INTERACTIVE@%s" % domain_upper,
+        },
+        "Members": [],
+        "Aces": [],
+    })
+
+    return groups
 
 def normalize_dn(dn):
     """Uniformise la casse, les espaces et les variantes unicode pour les DN."""
@@ -308,6 +326,14 @@ def format_groups(
             "IsACLProtected": is_acl_protected,
         }
         formatted_groups.append(group_bh_entry)
+
+    # Inject the four well-known security principal groups so that ACEs
+    # referencing them as a principal can be resolved as graph nodes in
+    # BloodHound. Without these the DCSync path (Enterprise DCs has
+    # GetChanges/GetChangesAll on the domain object) is broken, and many
+    # default ACEs become orphan edges.
+    # Aligned on bloodhound.py memberships.py:799-841.
+    formatted_groups.extend(format_wellknown_groups(domain, main_domain_sid))
 
     return {
         "data": formatted_groups,
