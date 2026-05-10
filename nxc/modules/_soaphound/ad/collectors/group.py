@@ -7,8 +7,8 @@ import unicodedata
 
 def collect_groups(ip=None, domain=None, username=None, auth=None, base_dn_override=None, cache_file=None):
     """
-    Collecte tous les groupes AD depuis l'annuaire ou un cache.
-    Ne filtre PAS sur le contenu de objectClass ou autre.
+    Collect all AD groups from the directory or from a cache.
+    No filtering on objectClass or other attributes.
     """
     import json
     if cache_file:
@@ -69,7 +69,7 @@ def prefix_well_known_sid(sid: str, domain_name: str, domain_sid: str, well_know
     return sid
 
 def is_highvalue(sid):
-    # Comme BH: Domain Admins, Enterprise Admins, Schema Admins, et quelques groupes bien connus
+    # Like BloodHound: Domain Admins, Enterprise Admins, Schema Admins, and a few well-known groups
     if sid.endswith("-512") or sid.endswith("-516") or sid.endswith("-519"):
         return True
     return sid in [
@@ -237,10 +237,6 @@ def format_groups(
         if isinstance(raw_members, str):
             raw_members = [raw_members]
 
-        # Always log raw group and members
-        #print(f"\n[DEBUG] Groupe: {dn} (sAMAccountName: {obj.get('sAMAccountName', '')})")
-        #print(f"  Membres bruts: {raw_members if raw_members else 'Aucun'}")
-
         for m_dn in raw_members:
             if not m_dn:
                 continue
@@ -263,15 +259,6 @@ def format_groups(
                 m_id = value_to_id_cache.get(m_dn_norm)
                 m_type = id_to_type_cache.get(m_id)
 
-            # Always log resolution
-            #print(f"    > Membre: {m_dn}")
-          #  if not m_id:
-                #print(f"      -> Introuvable dans value_to_id_cache: '{m_dn_norm}'")
-           # elif not m_type:
-                #print(f"      -> Type inconnu pour membre {m_dn} (ID: {m_id})")
-            #else:
-                #print(f"      -> Resolved: {m_id} (type {m_type})")
-
             if m_id and m_type is not None:
                 if m_type == 0:
                     m_type_label = "User"
@@ -281,17 +268,6 @@ def format_groups(
                     "ObjectIdentifier": m_id,
                     "ObjectType": m_type_label
                 })
-
-                    # Log summary of resolved members
-        #print(f"  Resolved members for this group:")
-       # if not members:
-            #print("    No resolved members for this group.")
-        #for m in members:
-            #print(f"    - {m}")
-
-       # for k, v in id_to_type_cache.items():
-        #    if v == 0:
-         #       print(f"  {k!r}: {v!r}")
 
                 
         name = obj.get("name", "")
