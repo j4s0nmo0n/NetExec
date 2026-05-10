@@ -117,3 +117,7 @@ secretsdump*
 lsass*.dmp
 
 # Exception: vendored Soaphound lib must be tracked
+
+# Always ignore __pycache__ and .pyc, even inside re-included dirs
+**/__pycache__/
+*.pyc
