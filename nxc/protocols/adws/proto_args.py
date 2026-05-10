@@ -53,7 +53,7 @@ def proto_args(parser, parents):
     enum.add_argument("--parse", action="store_true", help="(legacy) Parse SIDs/GUIDs/timestamps to human-readable. Now enabled by default; use --raw to disable.")
 
     # ------------------------------------------------------------------
-    # Écriture d'attributs / actions offensives
+    # Attribute writes / offensive actions
     # ------------------------------------------------------------------
     writing = adws_parser.add_argument_group("Writing / Attacks")
     writing.add_argument("--rbcd", metavar="SOURCE", help="Write RBCD on --account using SOURCE machine (use --remove to delete)")

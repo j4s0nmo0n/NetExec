@@ -212,7 +212,7 @@ oo     .d8P 888   888 d8(  888   888   888  888   888  888   888  888   888   88
     )
     all_child_items = data_child_main.get("objects", [])
     
-    # 4. Collecte principale (utilise default_dn pour le base_dn)
+    # 4. Main collection (uses default_dn as base_dn)
     data_container_main = pull_all_ad_objects(
         ip=options.domain_controller, domain=options.domain, username=options.username, auth=auth,
         query=main_query, attributes=SOAPHOUND_CACHE_PROPERTIES, base_dn_override=default_dn

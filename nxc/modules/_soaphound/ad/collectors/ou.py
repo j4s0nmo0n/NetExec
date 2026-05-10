@@ -9,7 +9,7 @@ import os
 
 def collect_ous(ip=None, domain=None, username=None, auth=None, base_dn_override=None, cache_file=None):
     """
-    Collecte les Organizational Units (OU) de l'annuaire AD (en live ou via cache).
+    Collect Organizational Units (OUs) from AD (live or via cache).
     """
     if cache_file:
         with open(cache_file, "r", encoding="utf-8") as f:
