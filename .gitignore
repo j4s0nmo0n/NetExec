@@ -115,3 +115,5 @@ test_data/
 ntds*.dit
 secretsdump*
 lsass*.dmp
+
+# Exception: vendored Soaphound lib must be tracked
