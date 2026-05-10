@@ -1686,10 +1686,49 @@ def evaluate_template(template: dict, sid_to_name: dict[str, str], user_sids: se
     elif user_has_dangerous_acl:
         vulnerabilities["ESC4"] = "User has dangerous permissions."
 
-    # Certipy-like output: do not emit noisy ESC2/ESC3 target-template
-    # remarks by default. These remarks are informational only and are not
-    # vulnerabilities; emitting them for every schema v1 client-auth template
-    # makes the output much noisier than Certipy.
+    # ESC2/ESC3 Target Template detection - aligned on certipy find.py:1977-2016.
+    # These are not vulnerabilities by themselves, but identify templates that
+    # can be used as the *target* of an ESC2 or ESC3 attack chain. They are
+    # informational remarks (not vulnerabilities), matching certipy's behavior.
+    #
+    # ESC2 Target: a template usable as a coercion target in an ESC2 chain.
+    # ESC3 Target: a template usable as a coercion target in an ESC3 chain.
+    if template.get("client_authentication"):
+        schema_version = template.get("schema_version") or 0
+        sig_required = template.get("authorized_signatures_required") or 0
+        app_policies_oids = template.get("application_policies") or []
+        # Soaphound stores application policies as a list of OIDs (not friendly
+        # names like certipy). Compare directly against well-known OIDs.
+        has_any_purpose = ANY_PURPOSE_OID in app_policies_oids
+        # Certificate Request Agent OID, defined at module level
+        CRA_OID = "1.3.6.1.4.1.311.20.2.1"
+        has_cra = CRA_OID in app_policies_oids
+
+        # ESC2 Target
+        if schema_version == 1 or (
+            schema_version > 1 and sig_required > 0 and has_any_purpose
+        ):
+            if schema_version == 1:
+                reason = "has schema version 1"
+            else:
+                reason = "requires a signature with the Any Purpose application policy"
+            remarks["ESC2 Target Template"] = (
+                "Template can be targeted as part of ESC2 exploitation. This is not a "
+                f"vulnerability by itself. See the wiki for more details. Template {reason}."
+            )
+
+        # ESC3 Target
+        if schema_version == 1 or (
+            schema_version > 1 and sig_required > 0 and has_cra
+        ):
+            if schema_version == 1:
+                reason = "has schema version 1"
+            else:
+                reason = "requires a signature with the Certificate Request Agent application policy"
+            remarks["ESC3 Target Template"] = (
+                "Template can be targeted as part of ESC3 exploitation. This is not a "
+                f"vulnerability by itself. See the wiki for more details. Template {reason}."
+            )
 
     template["vulnerabilities"] = vulnerabilities
     template["remarks"] = remarks
